@@ -1,12 +1,11 @@
+import walletModalCss from "@near-wallet-selector/modal-ui/styles.css?url";
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { useState } from "react";
-
 import { AppFooter } from "#/components/AppFooter";
 import { AppHeader } from "#/components/AppHeader";
-
 import appCss from "#/styles.css?url";
 
 /** Resolves the theme before first paint so the page never flashes light. */
@@ -24,7 +23,10 @@ export const Route = createRootRoute({
 					"Copy private trading strategies through NEAR Confidential Intents. Only attested PnL is public.",
 			},
 		],
-		links: [{ rel: "stylesheet", href: appCss }],
+		links: [
+			{ rel: "stylesheet", href: appCss },
+			{ rel: "stylesheet", href: walletModalCss },
+		],
 	}),
 	shellComponent: RootDocument,
 });

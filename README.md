@@ -28,10 +28,17 @@ cd ../PrivateCopy && docker compose up -d     # postgres, redis, server on :8080
 docker compose exec -T postgres psql -U privatecopy -d privatecopy < seed/demo.sql
 ```
 
-The leaderboard and strategy pages work unauthenticated and have been verified
-against the live API. The vault, studio and copy screens need wallet sign-in, so
-they show the connect-account state until the wallet selector is wired — a stale
-demo session is discarded when the mode changes rather than sent to the server.
+The leaderboard and strategy pages work unauthenticated. The rest needs sign-in:
+**Connect NEAR** opens the NEAR wallet selector (MyNearWallet), signs the
+server's NEP-413 challenge with a full-access key, and exchanges the signature
+for a JWT. Set `VITE_NEAR_NETWORK` to switch networks (default `testnet`); the
+account must exist on the same network the server's RPC points at, since the
+server checks the signing key is FullAccess before issuing a token.
+
+MyNearWallet can interrupt the flow twice — once to connect the account, once to
+sign — so the intent and the challenge are parked in `sessionStorage` and
+resumed on return, through either a popup or a full redirect. A stale demo
+session is discarded when the mode changes rather than sent to the server.
 
 The strategy endpoint returns attestations for every window in one list, so the
 strategy page picks one window (defaulting to 30d) instead of drawing 7d, 30d and
@@ -81,11 +88,9 @@ src/
 
 These need pieces that live outside this repo:
 
-- **Wallet sign-in.** `POST /v1/auth/nonce` and `/v1/auth/verify` are implemented in
-  `src/lib/api/index.ts`, but NEP-413 message signing needs the NEAR wallet selector.
-  In demo mode "Connect NEAR" adopts the seeded account.
-- **Buying a key.** A Key Registry contract call; the modal explains the flow and the
-  button is disabled.
+- **Buying a key.** A Key Registry contract call. The wallet is connected, so the
+  signing half exists; the contract id and method are not deployed yet, and the
+  modal explains the flow with the button disabled.
 - **1Click user session.** Pasteable from the account dialog in live mode, memory-only
   (never stored, never logged), exactly like the server's copy.
 - **Live signal stream.** `signalSocketUrl()` builds the `WS /v1/signals/{id}` URL;

@@ -1,10 +1,10 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "#/components/ui/Button";
-import { Alert } from "#/components/ui/Feedback";
+import { Alert, Spinner } from "#/components/ui/Feedback";
 import { Modal } from "#/components/ui/Modal";
-import { signIn } from "#/lib/api";
+import { signInAsDemoAccount } from "#/lib/api";
 import { clearSession, DEMO_MODE, setOneClickSession } from "#/lib/api/client";
 import { shorten } from "#/lib/format";
 import { useSession } from "#/lib/useSession";
@@ -14,7 +14,66 @@ export function WalletButton() {
 	const client = useQueryClient();
 	const [open, setOpen] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [busy, setBusy] = useState(false);
 	const [sessionToken, setSessionToken] = useState("");
+
+	// MyNearWallet redirects twice — once to connect the account, once to sign
+	// the challenge — so every load checks whether a sign-in is mid-flight and
+	// carries it to the end.
+	const hasSession = session.token !== null;
+	useEffect(() => {
+		if (DEMO_MODE) {
+			return;
+		}
+		let cancelled = false;
+		void import("#/lib/near/wallet")
+			.then(({ resumeSignIn }) => resumeSignIn(hasSession))
+			.then((result) => {
+				if (result === "signed-in" && !cancelled) {
+					void client.invalidateQueries();
+				}
+			})
+			.catch((cause: Error) => {
+				if (!cancelled) {
+					setError(cause.message);
+				}
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [client, hasSession]);
+
+	async function connect() {
+		setError(null);
+		setBusy(true);
+		try {
+			if (DEMO_MODE) {
+				signInAsDemoAccount();
+			} else {
+				const { walletSignIn } = await import("#/lib/near/wallet");
+				const result = await walletSignIn();
+				if (result === "redirecting") {
+					return;
+				}
+			}
+			await client.invalidateQueries();
+		} catch (cause) {
+			setError((cause as Error).message);
+		} finally {
+			setBusy(false);
+		}
+	}
+
+	async function disconnect() {
+		if (DEMO_MODE) {
+			clearSession();
+		} else {
+			const { walletSignOut } = await import("#/lib/near/wallet");
+			await walletSignOut();
+		}
+		await client.invalidateQueries();
+		setOpen(false);
+	}
 
 	if (!session.accountId) {
 		return (
@@ -22,24 +81,22 @@ export function WalletButton() {
 				<Button
 					variant="primary"
 					size="sm"
-					onClick={() => {
-						setError(null);
-						signIn()
-							.then(() => client.invalidateQueries())
-							.catch((cause: Error) => setError(cause.message));
-					}}
+					disabled={busy}
+					onClick={() => void connect()}
 				>
-					Connect NEAR
+					{busy ? <Spinner label="Connecting" /> : "Connect NEAR"}
 				</Button>
 				{error ? (
-					<Modal
-						open
-						title="Sign-in unavailable"
-						onClose={() => setError(null)}
-					>
-						<Alert tone="error" title="Wallet not connected">
+					<Modal open title="Could not connect" onClose={() => setError(null)}>
+						<Alert tone="error" title="Sign-in failed">
 							{error}
 						</Alert>
+						<p className="mt-3 mb-0 text-xs text-[var(--ink-faint)]">
+							Sign-in signs a NEP-413 challenge with a full-access key, so the
+							wallet has to support message signing — Meteor and MyNearWallet
+							do. The account must exist on{" "}
+							{import.meta.env.VITE_NEAR_NETWORK ?? "testnet"}.
+						</p>
 					</Modal>
 				) : null}
 			</>
@@ -67,14 +124,7 @@ export function WalletButton() {
 				footer={
 					<>
 						<Button onClick={() => setOpen(false)}>Close</Button>
-						<Button
-							variant="danger"
-							onClick={() => {
-								clearSession();
-								void client.invalidateQueries();
-								setOpen(false);
-							}}
-						>
+						<Button variant="danger" onClick={() => void disconnect()}>
 							Sign out
 						</Button>
 					</>

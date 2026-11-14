@@ -193,16 +193,10 @@ export const api = {
 };
 
 /**
- * Sign-in. In demo mode this just adopts the seeded account; against a live
- * backend it runs the NEP-413 challenge, which needs a wallet adapter to sign
- * the message (wallet selector is not wired yet).
+ * Demo sign-in: adopts the seeded account, no wallet involved. Live sign-in is
+ * the NEP-413 flow in `lib/near/wallet.ts`, which lives outside this module so
+ * the wallet selector is only loaded when a real backend is configured.
  */
-export async function signIn(): Promise<void> {
-	if (DEMO_MODE) {
-		setSession(DEMO_ACCOUNT, null);
-		return;
-	}
-	throw new Error(
-		"Wallet sign-in is not wired yet: NEP-413 signing needs the NEAR wallet selector.",
-	);
+export function signInAsDemoAccount(): void {
+	setSession(DEMO_ACCOUNT, null);
 }
