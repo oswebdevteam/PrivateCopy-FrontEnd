@@ -1,81 +1,68 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState } from "react";
 
-type ThemeMode = 'light' | 'dark' | 'auto'
+type Mode = "light" | "dark" | "auto";
 
-function getInitialMode(): ThemeMode {
-  if (typeof window === 'undefined') {
-    return 'auto'
-  }
+const KEY = "theme";
 
-  const stored = window.localStorage.getItem('theme')
-  if (stored === 'light' || stored === 'dark' || stored === 'auto') {
-    return stored
-  }
-
-  return 'auto'
+function stored(): Mode {
+	if (typeof window === "undefined") {
+		return "dark";
+	}
+	const value = window.localStorage.getItem(KEY);
+	return value === "light" || value === "dark" || value === "auto"
+		? value
+		: "dark";
 }
 
-function applyThemeMode(mode: ThemeMode) {
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-  const resolved = mode === 'auto' ? (prefersDark ? 'dark' : 'light') : mode
-
-  document.documentElement.classList.remove('light', 'dark')
-  document.documentElement.classList.add(resolved)
-
-  if (mode === 'auto') {
-    document.documentElement.removeAttribute('data-theme')
-  } else {
-    document.documentElement.setAttribute('data-theme', mode)
-  }
-
-  document.documentElement.style.colorScheme = resolved
+function apply(mode: Mode) {
+	const prefersLight = window.matchMedia(
+		"(prefers-color-scheme: light)",
+	).matches;
+	const resolved = mode === "auto" ? (prefersLight ? "light" : "dark") : mode;
+	document.documentElement.setAttribute("data-theme", resolved);
+	document.documentElement.style.colorScheme = resolved;
 }
+
+const NEXT: Record<Mode, Mode> = { dark: "light", light: "auto", auto: "dark" };
+const LABEL: Record<Mode, string> = {
+	dark: "Dark",
+	light: "Light",
+	auto: "Auto",
+};
 
 export default function ThemeToggle() {
-  const [mode, setMode] = useState<ThemeMode>('auto')
+	const [mode, setMode] = useState<Mode>("dark");
 
-  useEffect(() => {
-    const initialMode = getInitialMode()
-    setMode(initialMode)
-    applyThemeMode(initialMode)
-  }, [])
+	useEffect(() => {
+		const initial = stored();
+		setMode(initial);
+		apply(initial);
+	}, []);
 
-  useEffect(() => {
-    if (mode !== 'auto') {
-      return
-    }
+	useEffect(() => {
+		if (mode !== "auto") {
+			return;
+		}
+		const media = window.matchMedia("(prefers-color-scheme: light)");
+		const onChange = () => apply("auto");
+		media.addEventListener("change", onChange);
+		return () => media.removeEventListener("change", onChange);
+	}, [mode]);
 
-    const media = window.matchMedia('(prefers-color-scheme: dark)')
-    const onChange = () => applyThemeMode('auto')
-
-    media.addEventListener('change', onChange)
-    return () => {
-      media.removeEventListener('change', onChange)
-    }
-  }, [mode])
-
-  function toggleMode() {
-    const nextMode: ThemeMode =
-      mode === 'light' ? 'dark' : mode === 'dark' ? 'auto' : 'light'
-    setMode(nextMode)
-    applyThemeMode(nextMode)
-    window.localStorage.setItem('theme', nextMode)
-  }
-
-  const label =
-    mode === 'auto'
-      ? 'Theme mode: auto (system). Click to switch to light mode.'
-      : `Theme mode: ${mode}. Click to switch mode.`
-
-  return (
-    <button
-      type="button"
-      onClick={toggleMode}
-      aria-label={label}
-      title={label}
-      className="rounded-full border border-[var(--chip-line)] bg-[var(--chip-bg)] px-3 py-1.5 text-sm font-semibold text-[var(--sea-ink)] shadow-[0_8px_22px_rgba(30,90,72,0.08)] transition hover:-translate-y-0.5"
-    >
-      {mode === 'auto' ? 'Auto' : mode === 'dark' ? 'Dark' : 'Light'}
-    </button>
-  )
+	return (
+		<button
+			type="button"
+			title={`Theme: ${LABEL[mode].toLowerCase()}. Click for ${LABEL[NEXT[mode]].toLowerCase()}.`}
+			onClick={() => {
+				const next = NEXT[mode];
+				setMode(next);
+				apply(next);
+				window.localStorage.setItem(KEY, next);
+			}}
+			className="btn btn-ghost btn-sm"
+		>
+			<span className="sr-only">Change theme. Current: </span>
+			{LABEL[mode]}
+		</button>
+	);
 }

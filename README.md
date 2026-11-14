@@ -1,212 +1,94 @@
-Welcome to your new TanStack Start app!
+# PrivateCopy UI
 
-# Getting Started
+Frontend for KeyTrade / PrivateCopy — confidential copy-trading on NEAR Intents.
+TanStack Start (React 19, Vite, file-based routing) with Tailwind v4 and TanStack Query.
+The system design it implements is [system.md](system.md); this app covers section 12.
 
-To run this application:
-
-```bash
-npm install
-npm run dev
+```sh
+yarn install
+yarn dev        # http://localhost:3000
+yarn check      # biome lint + format
+npx tsc --noEmit
 ```
 
-# Building For Production
+## Demo mode
 
-To build this application for production:
+With no `VITE_API_URL` the app serves seeded fixtures from
+[`src/lib/api/demo.ts`](src/lib/api/demo.ts): five strategies, a time-compressed
+attestation feed, confidential balances, access keys and copy orders. Every screen
+is reviewable without a backend, a private shard or a funded testnet account, and
+nothing branches on demo vs live above the API facade.
 
-```bash
-npm run build
+## Live mode
+
+Set `VITE_API_URL` (see `.env.example`) to talk to a running `privatecopy-server`:
+
+```sh
+cd ../PrivateCopy && docker compose up -d     # postgres, redis, server on :8080
+docker compose exec -T postgres psql -U privatecopy -d privatecopy < seed/demo.sql
 ```
 
-## Styling
+The leaderboard and strategy pages work unauthenticated and have been verified
+against the live API. The vault, studio and copy screens need wallet sign-in, so
+they show the connect-account state until the wallet selector is wired — a stale
+demo session is discarded when the mode changes rather than sent to the server.
 
-This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
+The strategy endpoint returns attestations for every window in one list, so the
+strategy page picks one window (defaulting to 30d) instead of drawing 7d, 30d and
+all-time returns on the same curve.
 
-### Removing Tailwind CSS
+## Screens
 
-If you prefer not to use Tailwind CSS:
+| Route | Audience | What it shows |
+| --- | --- | --- |
+| `/` | anyone | Leaderboard: attested TWR, drawdown, NAV band, trade bucket, follower count, trend sparkline |
+| `/strategies/$strategyId` | anyone | Attestation curve and full attestation history, pricing tiers, disclosure summary, buy access |
+| `/vault` | trader and follower | Public and confidential balances side by side; shield and withdraw in one confirm |
+| `/studio` | trader | Own fills, keys sold with revoke, access revenue, strategy settings, private trade ticket |
+| `/copy` | follower | Access keys held, with expiry and agent key |
+| `/copy/$keyId` | follower | Risk limits, agent state and kill switch, copy activity with skip reasons |
 
-1. Remove the demo pages in `src/routes/demo/`
-2. Replace the Tailwind import in `src/styles.css` with your own styles
-3. Remove `tailwindcss()` from the plugins array in `vite.config.ts`
-4. Remove `@tailwindcss/vite` and `tailwindcss` from `package.json`
+## Design rules the UI enforces
 
-## Linting & Formatting
+- **Every number is labelled by who can see it.** Three disclosure states, each with
+  its own hue and badge: *public* (slate), *private to you* (amber), *attested*
+  (mint). The footer is the permanent legend. The brand hue (violet) is reserved for
+  interaction so it never reads as a disclosure state.
+- **Attestation is inspectable.** The badge opens the period, snapshot root, TEE
+  quote, signature and the anchoring transaction, and says plainly when a figure is
+  signed but not yet on-chain.
+- **Risk is stated in plain terms.** The copy screen names the worst case — the copy
+  vault balance — before anything is saved, and every skipped copy shows the rule
+  that caused it.
+- **Private views warn before they are shared.** The vault flags that a screenshot of
+  the confidential column discloses what the shard hides.
+- **Amounts are integer strings in smallest units**, converted only for display
+  ([`src/lib/format.ts`](src/lib/format.ts)), so no float ever touches a value.
 
-This project uses [Biome](https://biomejs.dev/) for linting and formatting. The following scripts are available:
+## Layout
 
-
-```bash
-npm run lint
-npm run format
-npm run check
+```
+src/
+  lib/api/      types.ts (wire types) · client.ts (fetch, session, errors)
+                index.ts (endpoint facade + demo switch) · demo.ts · queries.ts
+  lib/format.ts bps, smallest-unit amounts, asset symbols, relative time
+  components/   app shell, attestation badge, charts (hand-rolled SVG, no chart dep)
+  components/ui primitives: Panel, Button, Badge, Stat, Field, Modal, Segmented…
+  routes/       file-based routes, one per screen above
 ```
 
+## Not wired yet
 
-## Deploy with Nitro
+These need pieces that live outside this repo:
 
-This project uses Nitro as a generic server adapter, so it can run on any Node-compatible host.
-
-```bash
-npm run build
-node .output/server/index.mjs
-```
-
-The build output is a self-contained Node server. To deploy, push the `.output/` directory to your host (Render, Fly.io, your own VPS, etc.) and run the server command above.
-
-For host-specific presets (Vercel, Netlify, Cloudflare, AWS Lambda, etc.) and tuning, see https://v3.nitro.build/deploy.
-
-
-
-## Routing
-
-This project uses [TanStack Router](https://tanstack.com/router) with file-based routing. Routes are managed as files in `src/routes`.
-
-### Adding A Route
-
-To add a new route to your application just add a new file in the `./src/routes` directory.
-
-TanStack will automatically generate the content of the route file for you.
-
-Now that you have two routes you can use a `Link` component to navigate between them.
-
-### Adding Links
-
-To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/react-router`.
-
-```tsx
-import { Link } from "@tanstack/react-router";
-```
-
-Then anywhere in your JSX you can use it like so:
-
-```tsx
-<Link to="/about">About</Link>
-```
-
-This will create a link that will navigate to the `/about` route.
-
-More information on the `Link` component can be found in the [Link documentation](https://tanstack.com/router/v1/docs/framework/react/api/router/linkComponent).
-
-### Using A Layout
-
-In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you render `{children}` in the `shellComponent`.
-
-Here is an example layout that includes a header:
-
-```tsx
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
-
-export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'My App' },
-    ],
-  }),
-  shellComponent: ({ children }) => (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        <header>
-          <nav>
-            <Link to="/">Home</Link>
-            <Link to="/about">About</Link>
-          </nav>
-        </header>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  ),
-})
-```
-
-More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
-
-## Server Functions
-
-TanStack Start provides server functions that allow you to write server-side code that seamlessly integrates with your client components.
-
-```tsx
-import { createServerFn } from '@tanstack/react-start'
-
-const getServerTime = createServerFn({
-  method: 'GET',
-}).handler(async () => {
-  return new Date().toISOString()
-})
-
-// Use in a component
-function MyComponent() {
-  const [time, setTime] = useState('')
-  
-  useEffect(() => {
-    getServerTime().then(setTime)
-  }, [])
-  
-  return <div>Server time: {time}</div>
-}
-```
-
-## API Routes
-
-You can create API routes by using the `server` property in your route definitions:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-import { json } from '@tanstack/react-start'
-
-export const Route = createFileRoute('/api/hello')({
-  server: {
-    handlers: {
-      GET: () => json({ message: 'Hello, World!' }),
-    },
-  },
-})
-```
-
-## Data Fetching
-
-There are multiple ways to fetch data in your application. You can use TanStack Query to fetch data from a server. But you can also use the `loader` functionality built into TanStack Router to load the data for a route before it's rendered.
-
-For example:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/people')({
-  loader: async () => {
-    const response = await fetch('https://swapi.dev/api/people')
-    return response.json()
-  },
-  component: PeopleComponent,
-})
-
-function PeopleComponent() {
-  const data = Route.useLoaderData()
-  return (
-    <ul>
-      {data.results.map((person) => (
-        <li key={person.name}>{person.name}</li>
-      ))}
-    </ul>
-  )
-}
-```
-
-Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/react/guide/data-loading#loader-parameters).
-
-
-# Demo files
-
-Files prefixed with `demo` can be safely deleted. They are there to provide a starting point for you to play around with the features you've installed.
-
-
-# Learn More
-
-You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
-
-For TanStack Start specific documentation, visit [TanStack Start](https://tanstack.com/start).
+- **Wallet sign-in.** `POST /v1/auth/nonce` and `/v1/auth/verify` are implemented in
+  `src/lib/api/index.ts`, but NEP-413 message signing needs the NEAR wallet selector.
+  In demo mode "Connect NEAR" adopts the seeded account.
+- **Buying a key.** A Key Registry contract call; the modal explains the flow and the
+  button is disabled.
+- **1Click user session.** Pasteable from the account dialog in live mode, memory-only
+  (never stored, never logged), exactly like the server's copy.
+- **Live signal stream.** `signalSocketUrl()` builds the `WS /v1/signals/{id}` URL;
+  the relay also requires proof of possession of the key's X25519 agent key, which
+  belongs to the agent rather than the browser.
+- **Public NEAR balances.** The server exposes confidential balances only.
