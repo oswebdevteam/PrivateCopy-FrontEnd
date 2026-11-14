@@ -9,6 +9,7 @@ if (typeof globalThis.Buffer === "undefined") {
 
 import type { WalletSelector } from "@near-wallet-selector/core";
 import { setupWalletSelector } from "@near-wallet-selector/core";
+import { setupMeteorWallet } from "@near-wallet-selector/meteor-wallet";
 import type { WalletSelectorModal } from "@near-wallet-selector/modal-ui";
 import { setupModal } from "@near-wallet-selector/modal-ui";
 import { setupMyNearWallet } from "@near-wallet-selector/my-near-wallet";
@@ -21,9 +22,10 @@ const NETWORK = (import.meta.env.VITE_NEAR_NETWORK ?? "testnet") as
 	| "mainnet";
 
 /**
- * Sign-in survives two separate redirects with MyNearWallet — one to connect
- * the account, one to sign the challenge — so the intent and the challenge are
- * both parked in sessionStorage and picked up again on return.
+ * Meteor signs in-page and returns the signature directly. MyNearWallet can
+ * interrupt the flow twice — once to connect the account, once to sign — so
+ * the intent and the challenge are both parked in sessionStorage and picked up
+ * again on return.
  */
 const INTENT_KEY = "privatecopy.signin-intent";
 const CHALLENGE_KEY = "privatecopy.signin-challenge";
@@ -45,7 +47,7 @@ export function getSelector(): Promise<WalletSelector> {
 	if (!selectorPromise) {
 		selectorPromise = setupWalletSelector({
 			network: NETWORK,
-			modules: [setupMyNearWallet()],
+			modules: [setupMeteorWallet(), setupMyNearWallet()],
 		});
 	}
 	return selectorPromise;
@@ -115,7 +117,7 @@ async function requestSignature(accountId: string): Promise<SignInResult> {
 	if (!wallet.signMessage) {
 		window.sessionStorage.removeItem(INTENT_KEY);
 		throw new Error(
-			`${wallet.metadata.name} cannot sign messages. Use MyNearWallet.`,
+			`${wallet.metadata.name} cannot sign messages. Use Meteor or MyNearWallet.`,
 		);
 	}
 

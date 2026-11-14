@@ -9,6 +9,9 @@ import { nitro } from 'nitro/vite'
 
 const config = defineConfig({
   resolve: { tsconfigPaths: true },
+  // near-api-js and the Meteor wallet SDK reach for Node's `global` while the
+  // module is evaluating, which is too early for a runtime polyfill to help.
+  define: { global: 'globalThis' },
   plugins: [
     devtools(),
     nitro({ rollupConfig: { external: [/^@sentry\//] } }),
