@@ -8,7 +8,7 @@ import { Badge, DisclosureTag, StateBadge } from "#/components/ui/Badge";
 import { Button } from "#/components/ui/Button";
 import { Copyable } from "#/components/ui/Copyable";
 import { Alert, EmptyState, Rows, Spinner } from "#/components/ui/Feedback";
-import { Field, TextInput } from "#/components/ui/Field";
+import { Field, Select, TextInput } from "#/components/ui/Field";
 import { Modal } from "#/components/ui/Modal";
 import { Panel, PanelHeader } from "#/components/ui/Panel";
 import { Stat } from "#/components/ui/Stat";
@@ -386,8 +386,7 @@ function TradeTicket({
 			<div className="space-y-4">
 				<div className="grid grid-cols-2 gap-3">
 					<Field label="Sell">
-						<select
-							className="field"
+						<Select
 							value={sell}
 							onChange={(event) => setSell(event.target.value)}
 						>
@@ -396,11 +395,10 @@ function TradeTicket({
 									{assetSymbol(asset)}
 								</option>
 							))}
-						</select>
+						</Select>
 					</Field>
 					<Field label="Buy">
-						<select
-							className="field"
+						<Select
 							value={buy}
 							onChange={(event) => setBuy(event.target.value)}
 						>
@@ -409,7 +407,7 @@ function TradeTicket({
 									{assetSymbol(asset)}
 								</option>
 							))}
-						</select>
+						</Select>
 					</Field>
 				</div>
 
