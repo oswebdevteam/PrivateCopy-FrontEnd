@@ -35,7 +35,8 @@ interface ParkedChallenge {
 	message: string;
 	recipient: string;
 	nonce: string;
-	callbackUrl: string;
+	/** Only set when the wallet needs somewhere to redirect back to. */
+	callbackUrl?: string;
 }
 
 export type SignInResult = "signed-in" | "redirecting" | "idle";
@@ -122,7 +123,16 @@ async function requestSignature(accountId: string): Promise<SignInResult> {
 	}
 
 	const challenge = await api.nonce(accountId);
-	const callbackUrl = `${window.location.origin}${window.location.pathname}`;
+
+	// `callbackUrl` is optional in NEP-413 and is part of the signed payload,
+	// so it is only sent to a wallet that actually navigates away. An in-page
+	// wallet that quietly drops the field would otherwise sign a payload the
+	// server cannot reproduce.
+	const needsCallback = wallet.type === "browser";
+	const callbackUrl = needsCallback
+		? `${window.location.origin}${window.location.pathname}`
+		: undefined;
+
 	const parked: ParkedChallenge = {
 		accountId,
 		message: challenge.message,
@@ -136,7 +146,7 @@ async function requestSignature(accountId: string): Promise<SignInResult> {
 		message: challenge.message,
 		recipient: challenge.recipient,
 		nonce: Buffer.from(challenge.nonce, "base64"),
-		callbackUrl,
+		...(callbackUrl ? { callbackUrl } : {}),
 	});
 
 	// A redirect wallet navigates away instead of returning a signature.
@@ -168,7 +178,11 @@ export async function resumeSignIn(hasSession: boolean): Promise<SignInResult> {
 	if (parked && signature && publicKey) {
 		const challenge = JSON.parse(parked) as ParkedChallenge;
 		const accountId = readParam("accountId") ?? challenge.accountId;
-		window.history.replaceState({}, "", challenge.callbackUrl);
+		window.history.replaceState(
+			{},
+			"",
+			challenge.callbackUrl ?? window.location.pathname,
+		);
 		await exchange({ ...challenge, accountId }, publicKey, signature);
 		return "signed-in";
 	}

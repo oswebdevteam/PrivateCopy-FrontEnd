@@ -21,7 +21,9 @@ type Flow = { kind: "shield" | "unshield"; asset: string } | null;
 
 function VaultPage() {
 	const session = useSession();
-	const balances = useQuery(queries.balance(session.accountId));
+	const balances = useQuery(
+		queries.balance(session.accountId, session.oneClickSession),
+	);
 	const [flow, setFlow] = useState<Flow>(null);
 
 	if (!session.accountId) {
@@ -88,7 +90,12 @@ function VaultPage() {
 						description="Read through your 1Click session. Nobody else — including the leaderboard — sees these."
 						actions={<DisclosureTag kind="private" />}
 					/>
-					{balances.isPending ? (
+					{!DEMO_MODE && !session.oneClickSession ? (
+						<EmptyState
+							title="1Click session needed"
+							body="Confidential balances are read through your own 1Click session, which the server never stores. Open the account menu and paste one to see them."
+						/>
+					) : balances.isPending ? (
 						<Rows rows={3} />
 					) : balances.isError ? (
 						<div className="p-5">
