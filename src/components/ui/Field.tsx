@@ -1,4 +1,8 @@
-import type { InputHTMLAttributes, ReactNode } from "react";
+import type {
+	InputHTMLAttributes,
+	ReactNode,
+	SelectHTMLAttributes,
+} from "react";
 
 export function Field({
 	label,
@@ -32,6 +36,41 @@ export function Field({
 
 export function TextInput(props: InputHTMLAttributes<HTMLInputElement>) {
 	return <input className="field" {...props} />;
+}
+
+/**
+ * Native select, restyled. The browser arrow is replaced so the control
+ * matches the inputs beside it, and the option list inherits the page's
+ * colour-scheme so it is not a white popup on a dark page.
+ */
+export function Select({
+	className = "",
+	children,
+	...rest
+}: SelectHTMLAttributes<HTMLSelectElement>) {
+	return (
+		<span className="relative block">
+			<select className={`field field-select ${className}`} {...rest}>
+				{children}
+			</select>
+			<svg
+				viewBox="0 0 16 16"
+				width="14"
+				height="14"
+				aria-hidden="true"
+				className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-[var(--ink-faint)]"
+			>
+				<path
+					d="M4 6.5l4 4 4-4"
+					fill="none"
+					stroke="currentColor"
+					strokeWidth="1.6"
+					strokeLinecap="round"
+					strokeLinejoin="round"
+				/>
+			</svg>
+		</span>
+	);
 }
 
 /** Risk limits are basis points; the slider speaks percent. */

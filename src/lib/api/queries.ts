@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 
+import { DEMO_MODE } from "./client";
 import { api } from "./index";
 import type { Window } from "./types";
 
@@ -18,11 +19,16 @@ export const queries = {
 			staleTime: 30_000,
 		}),
 
-	balance: (accountId: string | null) =>
+	/**
+	 * Confidential balances are read through the caller's 1Click session, which
+	 * the server holds in memory only. Without one the request can only 401, so
+	 * it is not sent.
+	 */
+	balance: (accountId: string | null, oneClickSession: string | null) =>
 		queryOptions({
 			queryKey: ["balance", accountId] as const,
 			queryFn: () => api.balance(),
-			enabled: accountId !== null,
+			enabled: accountId !== null && (DEMO_MODE || oneClickSession !== null),
 			staleTime: 15_000,
 		}),
 

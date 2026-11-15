@@ -7,7 +7,7 @@ import { Sparkline } from "#/components/charts/Sparkline";
 import { RiskMeter } from "#/components/RiskMeter";
 import { Badge, DisclosureTag } from "#/components/ui/Badge";
 import { EmptyState, Rows } from "#/components/ui/Feedback";
-import { Field, TextInput } from "#/components/ui/Field";
+import { Field, Select, TextInput } from "#/components/ui/Field";
 import { Panel, PanelHeader } from "#/components/ui/Panel";
 import { Segmented } from "#/components/ui/Segmented";
 import { DEMO_MODE } from "#/lib/api/client";
@@ -134,10 +134,9 @@ function Leaderboard() {
 							/>
 						</Field>
 					</div>
-					<div className="w-40">
+					<div className="w-36 flex-shrink-0">
 						<Field label="Asset">
-							<select
-								className="field"
+							<Select
 								value={asset}
 								onChange={(event) => setAsset(event.target.value)}
 							>
@@ -146,22 +145,21 @@ function Leaderboard() {
 										{option.label}
 									</option>
 								))}
-							</select>
+							</Select>
 						</Field>
 					</div>
-					<div className="w-44">
+					<div className="w-56 flex-shrink-0">
 						<Field label="Sort by">
-							<select
-								className="field"
+							<Select
 								value={sort}
 								onChange={(event) => setSort(event.target.value as SortKey)}
 							>
 								<option value="rank">Return vs drawdown</option>
-								<option value="return">Attested return</option>
-								<option value="copiers">Copiers</option>
+								<option value="return">Highest return</option>
+								<option value="copiers">Most copiers</option>
 								<option value="risk">Lowest risk</option>
 								<option value="drawdown">Smallest drawdown</option>
-							</select>
+							</Select>
 						</Field>
 					</div>
 				</div>

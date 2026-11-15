@@ -9,6 +9,7 @@ if (typeof globalThis.Buffer === "undefined") {
 
 import type { WalletSelector } from "@near-wallet-selector/core";
 import { setupWalletSelector } from "@near-wallet-selector/core";
+import { setupMeteorWallet } from "@near-wallet-selector/meteor-wallet";
 import type { WalletSelectorModal } from "@near-wallet-selector/modal-ui";
 import { setupModal } from "@near-wallet-selector/modal-ui";
 import { setupMyNearWallet } from "@near-wallet-selector/my-near-wallet";
@@ -21,9 +22,10 @@ const NETWORK = (import.meta.env.VITE_NEAR_NETWORK ?? "testnet") as
 	| "mainnet";
 
 /**
- * Sign-in survives two separate redirects with MyNearWallet — one to connect
- * the account, one to sign the challenge — so the intent and the challenge are
- * both parked in sessionStorage and picked up again on return.
+ * Meteor signs in-page and returns the signature directly. MyNearWallet can
+ * interrupt the flow twice — once to connect the account, once to sign — so
+ * the intent and the challenge are both parked in sessionStorage and picked up
+ * again on return.
  */
 const INTENT_KEY = "privatecopy.signin-intent";
 const CHALLENGE_KEY = "privatecopy.signin-challenge";
@@ -33,7 +35,8 @@ interface ParkedChallenge {
 	message: string;
 	recipient: string;
 	nonce: string;
-	callbackUrl: string;
+	/** Only set when the wallet needs somewhere to redirect back to. */
+	callbackUrl?: string;
 }
 
 export type SignInResult = "signed-in" | "redirecting" | "idle";
@@ -45,7 +48,7 @@ export function getSelector(): Promise<WalletSelector> {
 	if (!selectorPromise) {
 		selectorPromise = setupWalletSelector({
 			network: NETWORK,
-			modules: [setupMyNearWallet()],
+			modules: [setupMeteorWallet(), setupMyNearWallet()],
 		});
 	}
 	return selectorPromise;
@@ -115,12 +118,21 @@ async function requestSignature(accountId: string): Promise<SignInResult> {
 	if (!wallet.signMessage) {
 		window.sessionStorage.removeItem(INTENT_KEY);
 		throw new Error(
-			`${wallet.metadata.name} cannot sign messages. Use MyNearWallet.`,
+			`${wallet.metadata.name} cannot sign messages. Use Meteor or MyNearWallet.`,
 		);
 	}
 
 	const challenge = await api.nonce(accountId);
-	const callbackUrl = `${window.location.origin}${window.location.pathname}`;
+
+	// `callbackUrl` is optional in NEP-413 and is part of the signed payload,
+	// so it is only sent to a wallet that actually navigates away. An in-page
+	// wallet that quietly drops the field would otherwise sign a payload the
+	// server cannot reproduce.
+	const needsCallback = wallet.type === "browser";
+	const callbackUrl = needsCallback
+		? `${window.location.origin}${window.location.pathname}`
+		: undefined;
+
 	const parked: ParkedChallenge = {
 		accountId,
 		message: challenge.message,
@@ -134,7 +146,7 @@ async function requestSignature(accountId: string): Promise<SignInResult> {
 		message: challenge.message,
 		recipient: challenge.recipient,
 		nonce: Buffer.from(challenge.nonce, "base64"),
-		callbackUrl,
+		...(callbackUrl ? { callbackUrl } : {}),
 	});
 
 	// A redirect wallet navigates away instead of returning a signature.
@@ -166,7 +178,11 @@ export async function resumeSignIn(hasSession: boolean): Promise<SignInResult> {
 	if (parked && signature && publicKey) {
 		const challenge = JSON.parse(parked) as ParkedChallenge;
 		const accountId = readParam("accountId") ?? challenge.accountId;
-		window.history.replaceState({}, "", challenge.callbackUrl);
+		window.history.replaceState(
+			{},
+			"",
+			challenge.callbackUrl ?? window.location.pathname,
+		);
 		await exchange({ ...challenge, accountId }, publicKey, signature);
 		return "signed-in";
 	}

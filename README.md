@@ -29,16 +29,17 @@ docker compose exec -T postgres psql -U privatecopy -d privatecopy < seed/demo.s
 ```
 
 The leaderboard and strategy pages work unauthenticated. The rest needs sign-in:
-**Connect NEAR** opens the NEAR wallet selector (MyNearWallet), signs the
+**Connect NEAR** opens the NEAR wallet selector (Meteor or MyNearWallet), signs the
 server's NEP-413 challenge with a full-access key, and exchanges the signature
 for a JWT. Set `VITE_NEAR_NETWORK` to switch networks (default `testnet`); the
 account must exist on the same network the server's RPC points at, since the
 server checks the signing key is FullAccess before issuing a token.
 
-MyNearWallet can interrupt the flow twice — once to connect the account, once to
-sign — so the intent and the challenge are parked in `sessionStorage` and
-resumed on return, through either a popup or a full redirect. A stale demo
-session is discarded when the mode changes rather than sent to the server.
+Meteor signs in-page and returns the signature directly. MyNearWallet can
+interrupt the flow twice — once to connect the account, once to sign — so the
+intent and the challenge are parked in `sessionStorage` and resumed on return,
+through either a popup or a full redirect. A stale demo session is discarded
+when the mode changes rather than sent to the server.
 
 The strategy endpoint returns attestations for every window in one list, so the
 strategy page picks one window (defaulting to 30d) instead of drawing 7d, 30d and
